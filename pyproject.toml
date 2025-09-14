@@ -1,0 +1,33 @@
+[project]
+name = "warp2api"
+version = "0.1.0"
+description = "Warp AI service to OpenAI API compatibility bridge"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]",
+    "uvicorn[standard]",
+    "httpx[http2]",
+    "protobuf",
+    "python-dotenv",
+    "websockets>=15.0.1",
+    "requests>=2.32.5",
+    "openai>=1.106.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "grpcio-tools",  # 仅在开发时需要，用于编译.proto文件
+]
+
+[project.scripts]
+warp-server = "server:main"
+warp-openai = "openai_compat:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["warp2protobuf*", "protobuf2openai*"]
+
+[[tool.uv.index]]
+url = "https://mirrors.ustc.edu.cn/pypi/simple"
+default = true
