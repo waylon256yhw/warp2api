@@ -1,32 +1,16 @@
-# Python
+# Python-generated files
 __pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.Python
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Virtual environments
-venv/
-.venv/
-
-# IDE/editor
-.idea/
-.vscode/
-*.code-workspace
-
-# Build & dist
+*.py[oc]
 build/
 dist/
-*.egg-info/
+wheels/
+*.egg-info
 
-# Logs & runtime
-logs/
-*.log
+# Virtual environments
+.venv
 .env
 
-# OS
-.DS_Store
-Thumbs.db
+# Log files
+logs/
+*.log
+packets_docs/
