@@ -23,6 +23,7 @@ WARP_URL = config.WARP_URL
 HOST = config.HOST
 PORT = config.WARP_SERVER_PORT  # 使用正确的端口名称
 WARP_JWT = config.WARP_JWT
+TIMEOUT = config.TIMEOUT
 
 # 客户端headers配置
 CLIENT_VERSION = config.CLIENT_VERSION

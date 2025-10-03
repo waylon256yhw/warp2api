@@ -29,7 +29,6 @@ def extract_openai_content_from_response(payload: bytes) -> dict:
         ResponseEvent = msg_cls("warp.multi_agent.v1.ResponseEvent")
         response = ResponseEvent()
         response.ParseFromString(payload)
-
         result = {"content": "", "tool_calls": [], "finish_reason": None, "metadata": {}}
 
         if response.HasField("client_actions"):

@@ -7,7 +7,7 @@ from typing import Any, AsyncGenerator, Dict
 import httpx
 from .logging import logger
 
-from .config import BRIDGE_BASE_URL
+from .config import BRIDGE_BASE_URL,TIMEOUT
 from .helpers import _get
 
 
@@ -24,7 +24,7 @@ async def stream_openai_sse(packet: Dict[str, Any], completion_id: str, created_
         logger.debug("[OpenAI Compat] 转换后的 SSE(emit): %s", json.dumps(first, ensure_ascii=False) if first else "")
         yield f"data: {json.dumps(first, ensure_ascii=False)}\n\n"
 
-        timeout = httpx.Timeout(60.0)
+        timeout = httpx.Timeout(TIMEOUT)
         async with httpx.AsyncClient(http2=True, timeout=timeout, trust_env=True) as client:
             def _do_stream():
                 return client.stream(
@@ -81,9 +81,28 @@ async def stream_openai_sse(packet: Dict[str, Any], completion_id: str, created_
                                     pass
 
                                 client_actions = _get(event_data, "client_actions", "clientActions")
+                                print(client_actions)
                                 if isinstance(client_actions, dict):
                                     actions = _get(client_actions, "actions", "Actions") or []
                                     for action in actions:
+                                        update_data = _get(action,"update_task_message")
+                                        if isinstance(update_data, dict):
+                                            message = update_data.get("message", {})
+                                            if _get(message, "user_query"):
+                                                continue
+                                            agent_output = _get(message, "agent_output", "agentOutput") or {}
+                                            text_content = agent_output.get("text", "")
+                                            if text_content:
+                                                delta = {
+                                                    "id": completion_id,
+                                                    "object": "chat.completion.chunk",
+                                                    "created": created_ts,
+                                                    "model": model_id,
+                                                    "choices": [{"index": 0, "delta": {"content": text_content}}],
+                                                }
+                                                # 打印转换后的 OpenAI SSE 事件
+                                                logger.debug("[OpenAI Compat] 转换后的 SSE(emit): delta")
+                                                yield f"data: {json.dumps(delta, ensure_ascii=False)}\n\n" 
                                         append_data = _get(action, "append_to_message_content", "appendToMessageContent")
                                         if isinstance(append_data, dict):
                                             message = append_data.get("message", {})
@@ -203,6 +222,24 @@ async def stream_openai_sse(packet: Dict[str, Any], completion_id: str, created_
                         if isinstance(client_actions, dict):
                             actions = _get(client_actions, "actions", "Actions") or []
                             for action in actions:
+                                update_data = _get(action, "update_task_message")  
+                                if isinstance(update_data, dict):
+                                    message = update_data.get("message", {})
+                                    if _get(message, "user_query"):
+                                        continue
+                                    agent_output = _get(message, "agent_output","agentOutput")
+                                    text_content = agent_output.get("text", "")
+                                    if text_content:
+                                        delta = {
+                                            "id": completion_id,
+                                            "object": "chat.completion.chunk",
+                                            "created": created_ts,
+                                            "model": model_id,
+                                            "choices": [{"index": 0, "delta": {"content": text_content}}],
+                                        }
+                                        # 打印转换后的 OpenAI SSE 事件
+                                        logger.debug("[OpenAI Compat] 转换后的 SSE(emit): delta")
+                                        yield f"data: {json.dumps(delta, ensure_ascii=False)}\n\n" 
                                 append_data = _get(action, "append_to_message_content", "appendToMessageContent")
                                 if isinstance(append_data, dict):
                                     message = append_data.get("message", {})

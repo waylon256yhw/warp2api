@@ -22,7 +22,7 @@ from ..core.protobuf_utils import protobuf_to_dict, dict_to_protobuf_bytes
 from ..core.auth import get_jwt_token, refresh_jwt_if_needed, is_token_expired, get_valid_jwt, acquire_anonymous_access_token
 from ..core.stream_processor import get_stream_processor, set_websocket_manager
 from ..config.models import get_all_unique_models
-from ..config.settings import CLIENT_VERSION, OS_CATEGORY, OS_NAME, OS_VERSION, WARP_URL as CONFIG_WARP_URL
+from ..config.settings import CLIENT_VERSION, OS_CATEGORY, OS_NAME, OS_VERSION, WARP_URL as CONFIG_WARP_URL, TIMEOUT
 from ..core.server_message_data import decode_server_message_data, encode_server_message_data
 
 
@@ -489,7 +489,8 @@ async def send_to_warp_api_stream_sse(request: EncodeRequest):
             if insecure_env in ("1", "true", "yes"):
                 verify_opt = False
                 logger.warning("TLS verification disabled via WARP_INSECURE_TLS for Warp API stream endpoint")
-            async with httpx.AsyncClient(http2=True, timeout=httpx.Timeout(60.0), verify=verify_opt, trust_env=True) as client:
+            async with httpx.AsyncClient(http2=True, timeout=httpx.Timeout(TIMEOUT), verify=verify_opt, trust_env=True) as client:
+                print(TIMEOUT)
                 # 最多尝试两次：第一次失败且为配额429时申请匿名token并重试一次
                 jwt = None
                 for attempt in range(2):
@@ -542,11 +543,15 @@ async def send_to_warp_api_stream_sse(request: EncodeRequest):
                                 raw_bytes = _parse_payload_bytes(current_data)
                                 current_data = ""
                                 if raw_bytes is None:
-                                    continue
+                                    logger.info(f"Failed to parse payload bytes from data: {current_data[:100]}...") # Log the failure
+                                    continue # This is where the data is discarded if _parse_payload_bytes fails
                                 try:
                                     event_data = protobuf_to_dict(raw_bytes, "warp.multi_agent.v1.ResponseEvent")
-                                except Exception:
-                                    continue
+                                    # 打印解码后的原始消息
+                                    # print(f"Decoded raw message: {event_data}")
+                                except Exception as e: # Log the specific exception
+                                    logger.info(f"Failed to parse Protobuf bytes to dict: {e}. Raw bytes (hex): {raw_bytes.hex() if raw_bytes else 'None'}")
+                                    continue # This is where the data is discarded if protobuf_to_dict fails
                                 def _get(d: Dict[str, Any], *names: str) -> Any:
                                     for n in names:
                                         if isinstance(d, dict) and n in d:
@@ -568,8 +573,9 @@ async def send_to_warp_api_stream_sse(request: EncodeRequest):
                                 out = {"event_number": event_no, "event_type": event_type, "parsed_data": event_data}
                                 try:
                                     chunk = json.dumps(out, ensure_ascii=False)
-                                except Exception:
-                                    continue
+                                except Exception as e: # Log the specific exception
+                                    logger.info(f"Failed to serialize event data to JSON: {e}. Event data: {out}")
+                                    continue # This is where the data is discarded if json.dumps fails
                                 yield f"data: {chunk}\n\n"
                         logger.info(f"✅ SSE流完成，转发事件数: {event_no}")
                         yield "data: [DONE]\n\n"

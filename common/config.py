@@ -29,6 +29,7 @@ class Config:
     HOST = os.getenv("HOST", "0.0.0.0")
     WARP_SERVER_PORT = int(os.getenv("WARP_SERVER_PORT", "28888"))
     OPENAI_COMPAT_PORT = int(os.getenv("OPENAI_COMPAT_PORT", "28889"))
+    TIMEOUT = int(os.getenv("TIMEOUT", "60"))
     
     # Warp API配置
     WARP_URL = os.getenv("WARP_API_URL", "https://app.warp.dev/ai/multi-agent")
